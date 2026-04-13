@@ -620,7 +620,6 @@ class GeneratingScreen(Screen):
         ex = state["export"]
 
         gen_func = GENERATORS[topo_key]
-        # Separate common params from topology-specific ones
         n, d, seed = params["n"], params["d"], params["seed"]
         extra = {k: v for k, v in params.items() if k not in ("n", "d", "seed")}
 
@@ -634,9 +633,12 @@ class GeneratingScreen(Screen):
         bar.update(total=total)
         status = self.query_one("#status-text", Static)
 
+        # Accumulate viz jobs to run on the main thread after all generation is done.
+        # Matplotlib is not thread-safe; calling it from a worker thread causes SIGSEGV.
+        viz_jobs: list[tuple] = []
+
         for i, (suffix, fn_cfg, ln_cfg) in enumerate(configs):
-            label = f"[{i + 1}/{total}] Generating {suffix}..."
-            self.app.call_from_thread(status.update, label)
+            self.app.call_from_thread(status.update, f"[{i + 1}/{total}] Generating {suffix}...")
 
             X_clean, y_clean = gen_func(n=n, d=d, seed=seed, **extra)
 
@@ -681,14 +683,32 @@ class GeneratingScreen(Screen):
 
             if ex["auto_viz"]:
                 plots_dir = str(Path(ex["output_dir"]) / "plots")
-                render_all(X_clean, y_clean, X_noisy, y_noisy, flip_mask, plots_dir, name or "dataset")
+                viz_jobs.append((X_clean, y_clean, X_noisy, y_noisy, flip_mask, plots_dir, name or "dataset"))
 
             self.app.call_from_thread(bar.advance, 1)
 
-        done_msg = f"Done. {total} dataset(s) exported to {ex['output_dir']}/"
-        self.app.call_from_thread(status.update, done_msg)
-        done_btn = self.query_one("#done-btn", Button)
-        self.app.call_from_thread(setattr, done_btn, "disabled", False)
+        # Hand visualization back to the main thread
+        if viz_jobs:
+            self.app.call_from_thread(self._run_visualization, viz_jobs, ex["output_dir"], total)
+        else:
+            done_msg = f"Done. {total} dataset(s) exported to {ex['output_dir']}/"
+            self.app.call_from_thread(status.update, done_msg)
+            done_btn = self.query_one("#done-btn", Button)
+            self.app.call_from_thread(setattr, done_btn, "disabled", False)
+
+    def _run_visualization(
+        self,
+        viz_jobs: list[tuple],
+        output_dir: str,
+        total: int,
+    ) -> None:
+        """Run matplotlib visualization on the main thread."""
+        status = self.query_one("#status-text", Static)
+        status.update(f"Rendering {len(viz_jobs)} plot suite(s)...")
+        for X_clean, y_clean, X_noisy, y_noisy, flip_mask, plots_dir, name in viz_jobs:
+            render_all(X_clean, y_clean, X_noisy, y_noisy, flip_mask, plots_dir, name)
+        status.update(f"Done. {total} dataset(s) exported to {output_dir}/")
+        self.query_one("#done-btn", Button).disabled = False
 
     def _build_sweep_configs(self, state: dict, fn: dict, ln: dict) -> list[tuple]:
         """Build list of (suffix, feature_noise_cfg, label_noise_cfg) for sweep."""
