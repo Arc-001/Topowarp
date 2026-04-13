@@ -7,16 +7,13 @@ runnable as a CLI: python -m topowarp.visualizer --input dataset.npz
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import matplotlib
-import numpy as np
-
-if not os.environ.get("DISPLAY") and matplotlib.get_backend() != "agg":
-    matplotlib.use("Agg")
+matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.figure import Figure
 from sklearn.decomposition import PCA
 
