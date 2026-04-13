@@ -53,7 +53,25 @@ class TestFeatureNoise:
 
     def test_invalid_distribution(self):
         with pytest.raises(ValueError, match="distribution"):
-            apply_feature_noise(self.X, "exponential", scale=0.1)
+            apply_feature_noise(self.X, "poisson", scale=0.1)
+
+    def test_exponential_mean_centered(self):
+        X_noisy = apply_feature_noise(self.X, "exponential", scale=0.5, seed=0)
+        noise = X_noisy - self.X
+        # Each affected column should have near-zero mean
+        np.testing.assert_allclose(noise.mean(axis=0), 0.0, atol=0.1)
+
+    def test_erlang_mean_centered(self):
+        X_noisy = apply_feature_noise(self.X, "erlang", scale=0.5, seed=0)
+        noise = X_noisy - self.X
+        np.testing.assert_allclose(noise.mean(axis=0), 0.0, atol=0.1)
+
+    def test_exponential_noise_is_not_symmetric(self):
+        # After mean-centering, exponential noise should still be right-skewed
+        X_noisy = apply_feature_noise(self.X, "exponential", scale=1.0, seed=0)
+        noise = (X_noisy - self.X)[:, 0]
+        from scipy.stats import skew
+        assert skew(noise) > 0.5, "Exponential noise should retain positive skew after centering"
 
     def test_negative_scale(self):
         with pytest.raises(ValueError, match="scale"):

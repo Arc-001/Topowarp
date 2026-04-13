@@ -10,7 +10,7 @@ import numpy as np
 from scipy.spatial import KDTree
 
 
-SUPPORTED_DISTRIBUTIONS = ("gaussian", "uniform", "laplacian")
+SUPPORTED_DISTRIBUTIONS = ("gaussian", "uniform", "laplacian", "exponential", "erlang")
 
 
 def apply_feature_noise(
@@ -53,6 +53,15 @@ def apply_feature_noise(
         noise[:, noisy_cols] = rng.uniform(-scale, scale, size=shape)
     elif distribution == "laplacian":
         noise[:, noisy_cols] = rng.laplace(0, scale, size=shape)
+    elif distribution == "exponential":
+        # Exponential is non-negative; mean-center so noise has zero mean.
+        raw = rng.exponential(scale, size=shape)
+        noise[:, noisy_cols] = raw - raw.mean(axis=0)
+    elif distribution == "erlang":
+        # Erlang(k=2) gives a right-skewed distribution with heavier tail
+        # than exponential. Mean-centered for the same reason as exponential.
+        raw = rng.gamma(shape=2, scale=scale / 2, size=shape)
+        noise[:, noisy_cols] = raw - raw.mean(axis=0)
 
     return X + noise
 

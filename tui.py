@@ -78,7 +78,7 @@ TOPOLOGIES = {
     },
 }
 
-NOISE_DISTRIBUTIONS = [("None", "none"), ("Gaussian", "gaussian"), ("Uniform", "uniform"), ("Laplacian", "laplacian")]
+NOISE_DISTRIBUTIONS = [("None", "none"), ("Gaussian", "gaussian"), ("Uniform", "uniform"), ("Laplacian", "laplacian"), ("Exponential (mean-centered)", "exponential"), ("Erlang k=2 (mean-centered)", "erlang")]
 NOISE_SCALE_PRESETS = ["0.0", "0.1", "0.5", "1.5"]
 SPARSITY_OPTIONS = [("100%", "1.0"), ("50%", "0.5"), ("10%", "0.1")]
 FLIP_PROB_OPTIONS = [("0%", "0.0"), ("5%", "0.05"), ("15%", "0.15"), ("30%", "0.3")]
